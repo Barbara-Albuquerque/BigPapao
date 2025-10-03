@@ -106,6 +106,7 @@ int main(){
          for (int i = 0; i < total_de_pedidos; i++) {
              if (lista_pedidos[i].status == CONCLUIDO) concluidos++;
          }
+         
      }
      
      fclose(log_filas);
@@ -117,12 +118,29 @@ int main(){
          int tempo_total_pedido = tempo_final - lista_pedidos[i].tempo_chegada;
          wprintf(L"Pedido %d: Chegou em %ds, Concluído em %ds (duração: %ds). ",
              lista_pedidos[i].id, lista_pedidos[i].tempo_chegada, tempo_final, tempo_total_pedido);
+              // Descrição do conteúdo do pedido
+    wprintf(L"   Itens: ");
+    if (lista_pedidos[i].sanduiches_s > 0)
+        wprintf(L"%d sanduíche(s) simples, ", lista_pedidos[i].sanduiches_s);
+    if (lista_pedidos[i].sanduiches_m > 0)
+        wprintf(L"%d sanduíche(s) médio(s), ", lista_pedidos[i].sanduiches_m);
+    if (lista_pedidos[i].batatas > 0)
+        wprintf(L"%d batata(s), ", lista_pedidos[i].batatas);
+    if (lista_pedidos[i].sucos > 0)
+        wprintf(L"%d suco(s), ", lista_pedidos[i].sucos);
+    if (lista_pedidos[i].milkshakes > 0)
+        wprintf(L"%d milkshake(s), ", lista_pedidos[i].milkshakes);
+    if (lista_pedidos[i].refrigerantes > 0)
+        wprintf(L"%d refrigerante(s), ", lista_pedidos[i].refrigerantes);
+
+    wprintf(L"\n");
          if (tempo_total_pedido > TEMPO_MAXIMO_PEDIDO || tempo_final == 0) {
              wprintf(L"(ESTOUROU O PRAZO OU FALHOU!)\n");
          } else {
              wprintf(L"(Entregue a tempo.)\n");
          }
      }
+     free(lista_pedidos);
 
 
      return 0;

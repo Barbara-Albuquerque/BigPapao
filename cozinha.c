@@ -50,6 +50,8 @@ typedef enum {
 #define TEMPO_BATATA 190
 #define TEMPO_SUCO 38
 #define TEMPO_MILKSHAKE 60
+#define TEMPO_REFRI 5
+
 
 
 
@@ -72,7 +74,7 @@ typedef struct Pedido {
     Status status;
     int tempo_chegada;
     int tempo_final;
-    int sanduiches_s, sanduiches_m, batatas, sucos, milkshakes;
+    int sanduiches_s, sanduiches_m, batatas, sucos, milkshakes, refrigerantes;
 } Pedido;
 
 typedef struct NoFila {
@@ -241,11 +243,17 @@ void imprimir_status_funcionarios(int tempo_atual) {
                         funcionarios[i].pedido_tarefa_atual->id, 
                         funcionarios[i].tempo_tarefa_atual);
                     break;
-                case FAZ_BEBIDA:
-                    wprintf(L"FAZENDO SUCO (Pedido %d) [resta: %ds]\n", 
-                        funcionarios[i].item_atual->id_pedido, 
-                        funcionarios[i].tempo_tarefa_atual);
+                case FAZ_BEBIDA: {
+                    const char *nm = (funcionarios[i].item_atual ? funcionarios[i].item_atual->nome : "");
+                    int is_refri = (nm && (strstr(nm, "Refrigerante") != NULL || strstr(nm, "refrigerante") != NULL));
+                    // imprime SUCO ou REFRIGERANTE conforme o nome do item
+                    wprintf(L"FAZENDO %ls (Pedido %d) [resta: %ds]\n",
+                            is_refri ? L"REFRIGERANTE" : L"SUCO",
+                            funcionarios[i].item_atual ? funcionarios[i].item_atual->id_pedido : -1,
+                            funcionarios[i].tempo_tarefa_atual);
                     break;
+                }
+
                 default:
                      // Este default agora só deve ser atingido se houver um bug real
                      wprintf(L"TAREFA EXCLUSIVA DESCONHECIDA\n");
@@ -290,7 +298,7 @@ void imprimir_status_funcionarios(int tempo_atual) {
  * Se o pedido não tiver itens, ele é movido diretamente para a fila de separação.
  */
 void criar_itens_para_producao(Pedido* pedido) {
-    pedido->qtd_itens_total = pedido->sanduiches_s + pedido->sanduiches_m + pedido->batatas + pedido->sucos + pedido->milkshakes;
+    pedido->qtd_itens_total = pedido->sanduiches_s + pedido->sanduiches_m + pedido->batatas + pedido->sucos + pedido->milkshakes + pedido->refrigerantes;
     pedido->itens_prontos = 0;
     if (pedido->qtd_itens_total == 0) {
         pedido->status = AGUARDANDO_MONTAGEM; enfileirar(&fila_montagem, pedido); return;
@@ -315,11 +323,17 @@ void criar_itens_para_producao(Pedido* pedido) {
         *item = (Item){pedido->id, "Suco", FAZ_BEBIDA, TEMPO_SUCO, 0};
         enfileirar(&fila_bebidas_gerais, item);
     }
+    for (int i = 0; i < pedido->refrigerantes; i++) {
+        Item* item = (Item*)malloc(sizeof(Item));
+        *item = (Item){pedido->id, "Refrigerante", FAZ_BEBIDA, TEMPO_REFRI, 0};
+        enfileirar(&fila_bebidas_gerais, item); 
+    }
     for(int i=0; i < pedido->milkshakes; i++) {
         Item* item = (Item*)malloc(sizeof(Item));
         *item = (Item){pedido->id, "Milk Shake", FAZ_MILKSHAKE, TEMPO_MILKSHAKE, 0};
         enfileirar(&fila_liquidificador, item);
     }
+
 }
 
 /**
@@ -538,7 +552,7 @@ int gerar_pedidos_automaticamente(
             if (!v) { fprintf(stderr, "Falha de memoria.\n"); exit(1); }
         }
         // ---- NOVO MODELO: máx 2 comidas e máx 2 bebidas ----
-        int s_s = 0, s_m = 0, bat = 0, suc = 0, milk = 0;
+        int s_s = 0, s_m = 0, bat = 0, suc = 0, milk = 0, refri = 0;
 
         // total de COMIDAS: 1..2  (garante ao menos 1 item no pedido)
         int total_comidas = 1 + (rand() % 2);
@@ -554,11 +568,14 @@ int gerar_pedidos_automaticamente(
             else bat++;
         }
 
-        // distribui BEBIDAS entre: suco, milkshake
+        // distribui BEBIDAS entre: suco, milkshake, refrigerante
         for (int k = 0; k < total_bebidas; k++) {
-            if (rand() % 2 == 0) suc++;
-            else milk++;
+            int r = rand() % 3; // 0=suc, 1=milk, 2=refri
+            if (r == 0) suc++;
+            else if (r == 1) milk++;
+            else refri++;
         }
+
 
         // (Opcional) se quiser evitar sanduíche médio sem simples, remodele acima.
         // Aqui, por regra, o pedido tem no máx 4 itens: total_comidas(≤2) + total_bebidas(≤2).
@@ -574,7 +591,8 @@ int gerar_pedidos_automaticamente(
             .sanduiches_m = s_m,
             .batatas = bat,
             .sucos = suc,
-            .milkshakes = milk
+            .milkshakes = milk,
+            .refrigerantes = refri 
         };
         n++;
 
